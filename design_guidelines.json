@@ -1,0 +1,84 @@
+{
+  "project_name": "Auto Service Launchpad",
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "design_philosophy": "Extreme simplicity, high contrast, and zero clutter. Designed specifically for non-technical users. Every interaction must be obvious. Typography and spacing do the heavy lifting for hierarchy.",
+  "typography": {
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "IBM Plex Sans, sans-serif",
+    "hierarchy": {
+      "h1": "text-4xl md:text-5xl tracking-tight font-bold text-slate-900",
+      "h2": "text-2xl md:text-3xl tracking-tight font-semibold text-slate-800",
+      "body": "text-lg md:text-xl text-slate-700",
+      "small_label": "text-sm tracking-widest uppercase font-semibold text-slate-500"
+    }
+  },
+  "color_palette": {
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "primary_brand": "#0F172A",
+    "primary_action": "#2563EB",
+    "text_main": "#0F172A",
+    "text_muted": "#64748B",
+    "border": "#E2E8F0",
+    "hover_bg": "#F1F5F9",
+    "danger": "#EF4444",
+    "success": "#10B981"
+  },
+  "spacing_and_layout": {
+    "global_container": "max-w-7xl mx-auto px-6 py-12",
+    "grid_system": {
+      "launchpad": "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
+    },
+    "surfaces": "Use flat solid surfaces. No glassmorphism. Crisp 1px borders with subtle shadows.",
+    "radius": "rounded-2xl for main cards, rounded-xl for inputs/buttons."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Cards must elevate slightly (hover:-translate-y-1) and increase shadow (hover:shadow-lg).",
+    "transitions": "transition-all duration-200 ease-in-out",
+    "focus_states": "focus:ring-2 focus:ring-blue-600 focus:outline-none focus:ring-offset-2"
+  },
+  "components": {
+    "LaunchpadCard": {
+      "description": "Large square tile for each link. Clean and obvious.",
+      "container": "aspect-square bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center justify-center p-6 gap-4 cursor-pointer text-center",
+      "logo_wrapper": "h-20 w-20 md:h-24 md:w-24 flex items-center justify-center mb-2",
+      "logo_image": "w-full h-full object-contain drop-shadow-sm",
+      "text": "font-semibold text-lg md:text-xl text-slate-900 line-clamp-2 leading-tight"
+    },
+    "SearchBar": {
+      "description": "Prominent, large search input centered at the top.",
+      "container": "max-w-2xl mx-auto mb-16 relative",
+      "input": "w-full h-16 pl-14 pr-6 text-xl bg-white border-2 border-slate-200 rounded-2xl shadow-sm focus:border-blue-600 focus:ring-0 transition-colors",
+      "icon": "absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-6 h-6"
+    },
+    "AdminToggle": {
+      "description": "Hidden/discrete button for admin access.",
+      "styles": "fixed bottom-6 right-6 p-3 text-slate-300 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-all duration-300 opacity-30 hover:opacity-100 z-50",
+      "icon": "Lucide Settings icon"
+    },
+    "AdminPanel": {
+      "description": "Standard Shadcn UI implementation for dashboard.",
+      "table": "Use pure HTML/Tailwind for structure or simple Shadcn Table. Must include drag handle for custom ordering.",
+      "forms": "Use Shadcn Input, Select, Switch, Dialog for editing."
+    }
+  },
+  "media": {
+    "placeholders": {
+      "app_logo": "Use lucide-react 'Wrench' or 'Settings' icon for default top-left brand.",
+      "card_logo": "Use lucide-react 'Globe' or 'Link' icon for tiles missing a logo."
+    }
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text over cards is minimum 4.5:1. (Slate 900 on White is ~15:1).",
+    "testing_attributes": "All interactive elements MUST include data-testid. Examples: data-testid='card-link-1', data-testid='search-input', data-testid='admin-toggle', data-testid='admin-login-submit'."
+  },
+  "instructions_to_main_agent": {
+    "architecture": "Hybrid Fullstack. Use FastAPI for backend APIs and SQLite database. Use React (.js) with Vite for frontend.",
+    "frontend_setup": "Install Tailwind, lucide-react, react-router-dom, @dnd-kit/core (for drag-and-drop), and shadcn UI primitives (dialog, input, switch, table, toast).",
+    "backend_setup": "FastAPI with SQLAlchemy (SQLite). Create models for: Link (id, title, url, logo_url, clicks, is_active, custom_order, created_at) and Settings (id, sort_mode, open_in_new_tab).",
+    "auth_flow": "Implement simple session or JWT token auth for the admin routes. Hardcode or auto-generate a temporary admin password on first boot, output it to console, and provide a way to change it. Unauthenticated users cannot see edit forms.",
+    "link_handling": "When a card is clicked, first fire an async POST to `/api/links/{id}/click` to increment stats, then navigate to the URL. Use `target='_blank'` based on settings.",
+    "file_handling": "Implement a simple local upload endpoint in FastAPI to save logo images to a static folder, or allow storing external URLs directly."
+  }
+}
