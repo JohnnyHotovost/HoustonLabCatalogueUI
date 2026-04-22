@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { discoverAdminLogo, getApiErrorMessage } from "../../api";
+import { SafeLogoImage } from "../SafeLogoImage";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -100,7 +101,7 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[1.5rem] border-slate-200 sm:max-w-2xl" data-testid="link-form-dialog">
+      <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-[1.5rem] border-slate-200 sm:max-w-2xl" data-testid="link-form-dialog">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-slate-900" data-testid="link-form-title">
             {editingLink ? "Upravit položku" : "Přidat novou položku"}
@@ -204,7 +205,14 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
             <div className="mb-3 text-sm font-semibold text-slate-700">Náhled loga</div>
             {preview ? (
               <div className="flex items-center gap-4">
-                <img src={preview} alt="Logo náhled" className="h-16 w-16 rounded-2xl object-contain bg-white p-2" />
+                <SafeLogoImage
+                  src={preview}
+                  alt="Logo náhled"
+                  className="h-16 w-16 rounded-2xl bg-white p-2 object-contain"
+                  imageTestId="link-form-preview-image"
+                  fallbackClassName="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-slate-500"
+                  fallbackTestId="link-form-preview-fallback"
+                />
                 <Button
                   type="button"
                   variant="outline"

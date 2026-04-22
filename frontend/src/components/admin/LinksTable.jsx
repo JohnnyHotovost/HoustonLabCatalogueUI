@@ -1,4 +1,5 @@
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { SafeLogoImage } from "../SafeLogoImage";
 import { Button } from "../ui/button";
 
 export const LinksTable = ({ links, onEdit, onDelete }) => {
@@ -30,11 +31,15 @@ export const LinksTable = ({ links, onEdit, onDelete }) => {
                 <td className="px-4 py-4">
                   <div className="flex min-w-[280px] items-center gap-4">
                     <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-slate-100">
-                      {link.logo_data || link.logo_url ? (
-                        <img src={link.logo_data || link.logo_url} alt={link.title} className="h-full w-full object-contain" />
-                      ) : (
-                        <span className="text-xl font-semibold text-slate-500">{link.title.charAt(0)}</span>
-                      )}
+                      <SafeLogoImage
+                        src={link.logo_data || link.logo_url}
+                        alt={link.title}
+                        className="h-full w-full object-contain"
+                        imageTestId={`admin-link-logo-image-${link.id}`}
+                        fallbackClassName="flex h-full w-full items-center justify-center bg-slate-100 text-xl font-semibold text-slate-500"
+                        fallbackContent={<span>{link.title.charAt(0)}</span>}
+                        fallbackTestId={`admin-link-logo-fallback-${link.id}`}
+                      />
                     </div>
                     <div className="space-y-1">
                       <div className="font-semibold text-slate-900" data-testid={`admin-link-title-${link.id}`}>

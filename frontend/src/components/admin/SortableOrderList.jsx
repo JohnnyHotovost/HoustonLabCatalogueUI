@@ -7,6 +7,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Star } from "lucide-react";
+import { SafeLogoImage } from "../SafeLogoImage";
 import { Button } from "../ui/button";
 
 const SortableTile = ({ link }) => {
@@ -36,11 +37,15 @@ const SortableTile = ({ link }) => {
       </button>
 
       <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-slate-100">
-        {link.logo_data || link.logo_url ? (
-          <img src={link.logo_data || link.logo_url} alt={link.title} className="h-full w-full object-contain" />
-        ) : (
-          <span className="text-lg font-semibold text-slate-500">{link.title.charAt(0)}</span>
-        )}
+        <SafeLogoImage
+          src={link.logo_data || link.logo_url}
+          alt={link.title}
+          className="h-full w-full object-contain"
+          imageTestId={`sortable-link-logo-image-${link.id}`}
+          fallbackClassName="flex h-full w-full items-center justify-center bg-slate-100 text-lg font-semibold text-slate-500"
+          fallbackContent={<span>{link.title.charAt(0)}</span>}
+          fallbackTestId={`sortable-link-logo-fallback-${link.id}`}
+        />
       </div>
 
       <div className="min-w-0 flex-1">

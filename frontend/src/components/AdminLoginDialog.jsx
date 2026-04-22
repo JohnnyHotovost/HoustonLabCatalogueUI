@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
@@ -33,9 +34,10 @@ export const AdminLoginDialog = ({ open, onOpenChange, onSuccess }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-[1.5rem] border-slate-200 bg-white p-6 sm:max-w-sm" data-testid="admin-login-dialog">
+      <DialogContent aria-describedby={undefined} className="rounded-[1.5rem] border-slate-200 bg-white p-6 sm:max-w-sm" data-testid="admin-login-dialog">
         <DialogHeader className="sr-only">
           <DialogTitle data-testid="admin-login-title">Admin login</DialogTitle>
+          <DialogDescription id="admin-login-description">Přihlášení administrátora.</DialogDescription>
         </DialogHeader>
 
         <form className="space-y-3" onSubmit={handleSubmit}>
