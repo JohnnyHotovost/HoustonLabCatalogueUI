@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: autoservis-launchpad:stable
+    platform: linux/arm64
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      PORT: 8080
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: autoservis_launchpad
+      CORS_ORIGINS: "*"
+      JWT_SECRET: change-this-long-random-secret
+      TEMP_ADMIN_USERNAME: admin
+      TEMP_ADMIN_PASSWORD: servis1234
+    ports:
+      - "8080:8080"
+
+  mongo:
+    image: mongo:7.0
+    platform: linux/arm64
+    restart: unless-stopped
+    command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - ./qnap-data/mongodb:/data/db

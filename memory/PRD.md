@@ -17,6 +17,7 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní webový rozcestník pro
 - Přidat viditelný a čistý sort control u search baru
 - Admin login modal co nejjednodušší
 - Automaticky zkusit načíst favicon/logo podle URL webu a ponechat ruční override
+- Tuto verzi zachovat jako stable snapshot a připravit ji pro self-hosting na QNAP TS-233 přes Docker / Container Station
 
 ## Architektura a rozhodnutí
 - Frontend: React + Tailwind + shadcn/ui komponenty
@@ -28,10 +29,13 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní webový rozcestník pro
 - Statistiky: jednoduché interní click count na každé položce
 - Řazení: alphabetical / clicks / latest / custom
 - Custom order: drag-and-drop v adminu
+- Self-hosting varianta: single-service app container (FastAPI + statický frontend build) + MongoDB container
+- QNAP optimalizace: ARM64 kompatibilita, minimální Python dependencies, omezená Mongo cache, persistentní bind mount pro Mongo data
 
 ## Persony
 - Zaměstnanec autoservisu: otevře stránku a jedním klikem spustí požadovaný web
 - Majitel / administrátor: spravuje odkazy, pořadí, loga, přihlášení a nastavení
+- Lokální správce NAS: potřebuje jednoduchý a lehký deployment bez ztráty dat
 
 ## Core requirements
 - Veřejný grid velkých karet pouze s logem a názvem
@@ -44,6 +48,7 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní webový rozcestník pro
 - Persistentní data a rozumná validace URL/formulářů
 - Import/export seznamu odkazů
 - Možnost změnit admin přihlášení uvnitř administrace
+- Stable snapshot vhodný pro dlouhodobý self-hosting na QNAP TS-233
 
 ## Co je implementováno
 ### 2026-04-22
@@ -61,6 +66,16 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní webový rozcestník pro
 - Opravené backend flow pro reorder a export/import
 - Ošetřené frontend error messages, aby nepadaly na validačních chybách API
 - Seed vyčištěný zpět na 15 placeholder položek, alphabetical default, open-in-new-tab default zapnutý
+- Připravený stable self-hosting snapshot pro QNAP TS-233:
+  - `Dockerfile`
+  - `docker-compose.yml`
+  - `.dockerignore`
+  - `frontend/.env.production`
+  - `backend/wait_for_mongo.py`
+  - `DEPLOYMENT_QNAP.md`
+  - produkční frontend build v `frontend/build/`
+- Backend umí v produkční variantě obsloužit statický frontend build ze stejného kontejneru
+- Requirements byly zjednodušené na nezbytné minimum pro lehčí ARM64 deployment
 
 ## Prioritized backlog
 ### P0
@@ -70,14 +85,17 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní webový rozcestník pro
 - Branding editor (název firmy / logo firmy) přímo v adminu
 - Lepší validace externích logo URL před uložením
 - Jemné lepší hlášky kolem automatického načítání loga
+- Volitelně přidat HTTPS reverse proxy preset pro QNAP / lokální router
 
 ### P2
 - Bulk import přes CSV/XLSX
 - Více admin účtů / role
 - Pokročilejší statistika používání v čase
+- Volitelný backup/export scheduler pro NAS
 
 ## Next tasks list
-- Doladit finální firemní branding podle reálného autoservisu
+- Uložit tento stable snapshot do GitHubu
 - Nahradit placeholder odkazy skutečnými katalogy přes admin UI
 - Změnit dočasné admin přihlášení na vlastní
-- Volitelně doplnit branding editor a validaci log URL
+- Na QNAPu namapovat `./qnap-data/mongodb` jako trvalé úložiště
+- Volitelně doplnit HTTPS a vlastní doménu v lokální síti

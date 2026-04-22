@@ -11,7 +11,9 @@ from urllib.parse import urljoin, urlparse
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.context import CryptContext
@@ -21,6 +23,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+frontend_build_dir = ROOT_DIR.parent / "frontend" / "build"
+frontend_static_dir = frontend_build_dir / "static"
 
 mongo_url = os.environ["MONGO_URL"]
 database_name = os.environ["DB_NAME"]
@@ -609,3 +613,21 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+if frontend_static_dir.exists():
+    app.mount("/static", StaticFiles(directory=frontend_static_dir), name="frontend-static")
+
+
+if frontend_build_dir.exists():
+    @app.get("/", include_in_schema=False)
+    async def serve_frontend_index():
+        return FileResponse(frontend_build_dir / "index.html")
+
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend_app(full_path: str):
+        requested_path = frontend_build_dir / full_path
+        if requested_path.exists() and requested_path.is_file():
+            return FileResponse(requested_path)
+        return FileResponse(frontend_build_dir / "index.html")
