@@ -215,7 +215,7 @@ def test_reorder_updates_custom_order(api_client, auth_headers):
     first_two_ids = [links[0]["id"], links[1]["id"]]
 
     reorder_response = api_client.put(
-        f"{BASE_URL}/api/admin/links/reorder-items",
+        f"{BASE_URL}/api/admin/links/reorder/items",
         headers=auth_headers,
         json={"link_ids": list(reversed(first_two_ids))},
         timeout=20,

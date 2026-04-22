@@ -18,6 +18,34 @@ export const getStoredToken = () => localStorage.getItem(ADMIN_TOKEN_KEY);
 export const setStoredToken = (token) => localStorage.setItem(ADMIN_TOKEN_KEY, token);
 export const clearStoredToken = () => localStorage.removeItem(ADMIN_TOKEN_KEY);
 
+const detailToMessage = (detail) => {
+  if (!detail) {
+    return "";
+  }
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    return detail.map(detailToMessage).filter(Boolean).join(" • ");
+  }
+
+  if (typeof detail === "object") {
+    if (typeof detail.msg === "string") {
+      return detail.msg;
+    }
+    return Object.values(detail).map(detailToMessage).filter(Boolean).join(" • ");
+  }
+
+  return String(detail);
+};
+
+export const getApiErrorMessage = (error, fallback = "Něco se nepodařilo.") => {
+  const message = detailToMessage(error?.response?.data?.detail || error?.response?.data || error?.message);
+  return message || fallback;
+};
+
 export const fetchLaunchpad = async () => {
   const { data } = await api.get("/launchpad");
   return data;
@@ -60,7 +88,7 @@ export const deleteAdminLink = async (token, id) => {
 
 export const reorderAdminLinks = async (token, linkIds) => {
   const { data } = await api.put(
-    "/admin/links/reorder-items",
+    "/admin/links/reorder/items",
     { link_ids: linkIds },
     authHeaders(token),
   );
@@ -69,6 +97,11 @@ export const reorderAdminLinks = async (token, linkIds) => {
 
 export const fetchAdminSettings = async (token) => {
   const { data } = await api.get("/admin/settings", authHeaders(token));
+  return data;
+};
+
+export const discoverAdminLogo = async (token, url) => {
+  const { data } = await api.post("/admin/discover-logo", { url }, authHeaders(token));
   return data;
 };
 

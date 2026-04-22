@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
+import { discoverAdminLogo, getApiErrorMessage } from "../../api";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -20,8 +21,11 @@ const emptyForm = {
   is_favorite: false,
 };
 
-export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, loading }) => {
+export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, loading, token }) => {
   const [form, setForm] = useState(emptyForm);
+  const [autoLogoUrl, setAutoLogoUrl] = useState("");
+  const [autoStatus, setAutoStatus] = useState("");
+  const [discovering, setDiscovering] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -40,9 +44,40 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
           }
         : emptyForm,
     );
+    setAutoLogoUrl("");
+    setAutoStatus("");
   }, [editingLink, open]);
 
-  const preview = useMemo(() => form.logo_data || form.logo_url || "", [form.logo_data, form.logo_url]);
+  useEffect(() => {
+    if (!open || !token || !form.url.trim()) {
+      setAutoLogoUrl("");
+      setAutoStatus("");
+      return undefined;
+    }
+
+    const timeout = setTimeout(async () => {
+      setDiscovering(true);
+      try {
+        const result = await discoverAdminLogo(token, form.url);
+        if (result?.found && result.logo_url) {
+          setAutoLogoUrl(result.logo_url);
+          setAutoStatus("Logo načtené automaticky z webu.");
+        } else {
+          setAutoLogoUrl("");
+          setAutoStatus("Automatické logo se nenašlo.");
+        }
+      } catch (error) {
+        setAutoLogoUrl("");
+        setAutoStatus(getApiErrorMessage(error, "Automatické logo se nepodařilo načíst."));
+      } finally {
+        setDiscovering(false);
+      }
+    }, 700);
+
+    return () => clearTimeout(timeout);
+  }, [form.url, open, token]);
+
+  const preview = useMemo(() => form.logo_data || form.logo_url || autoLogoUrl || "", [autoLogoUrl, form.logo_data, form.logo_url]);
 
   const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
@@ -59,7 +94,7 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
     event.preventDefault();
     await onSubmit({
       ...form,
-      logo_url: form.logo_url.trim(),
+      logo_url: form.logo_url.trim() || autoLogoUrl,
     });
   };
 
@@ -105,9 +140,32 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
               />
             </div>
 
+            <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 md:col-span-2" data-testid="link-form-auto-logo-card">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="font-semibold text-slate-900">Automaticky najít logo</div>
+                  <div className="text-sm text-slate-500" data-testid="link-form-auto-logo-status">
+                    {discovering ? "Hledám favicon / logo…" : autoStatus || "Po zadání URL zkusím logo načíst automaticky."}
+                  </div>
+                </div>
+
+                {autoLogoUrl ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    data-testid="link-form-use-auto-logo-button"
+                    onClick={() => setForm((current) => ({ ...current, logo_url: autoLogoUrl, logo_data: "" }))}
+                  >
+                    Použít automatické logo
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700" htmlFor="logo-url">
-                Logo přes URL
+                Vlastní logo přes URL
               </label>
               <Input
                 id="logo-url"

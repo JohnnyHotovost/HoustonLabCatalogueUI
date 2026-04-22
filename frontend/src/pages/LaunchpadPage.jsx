@@ -4,15 +4,33 @@ import { toast } from "sonner";
 import { fetchLaunchpad, getStoredToken, trackLinkClick } from "../api";
 import { AdminAccessButton } from "../components/AdminAccessButton";
 import { AdminLoginDialog } from "../components/AdminLoginDialog";
-import { BrandHeader } from "../components/BrandHeader";
 import { LinkCard } from "../components/LinkCard";
 import { SearchBar } from "../components/SearchBar";
+
+const sortLinks = (links, sortMode) => {
+  const sorted = [...links];
+
+  if (sortMode === "clicks") {
+    sorted.sort((first, second) => second.clicks - first.clicks || first.title.localeCompare(second.title, "cs"));
+  } else if (sortMode === "latest") {
+    sorted.sort((first, second) => new Date(second.created_at) - new Date(first.created_at));
+  } else if (sortMode === "custom") {
+    sorted.sort((first, second) => first.custom_order - second.custom_order || first.title.localeCompare(second.title, "cs"));
+  } else {
+    sorted.sort((first, second) => first.title.localeCompare(second.title, "cs"));
+  }
+
+  const favorites = sorted.filter((link) => link.is_favorite);
+  const regular = sorted.filter((link) => !link.is_favorite);
+  return [...favorites, ...regular];
+};
 
 export default function LaunchpadPage() {
   const navigate = useNavigate();
   const [launchpad, setLaunchpad] = useState({ links: [], settings: null });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState("alphabetical");
   const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
@@ -20,6 +38,7 @@ export default function LaunchpadPage() {
       try {
         const data = await fetchLaunchpad();
         setLaunchpad(data);
+        setSortMode(data.settings?.sort_mode || "alphabetical");
       } catch (error) {
         toast.error("Nepodařilo se načíst rozcestník.");
       } finally {
@@ -31,10 +50,11 @@ export default function LaunchpadPage() {
   }, []);
 
   const filteredLinks = useMemo(() => {
-    return launchpad.links.filter((link) =>
+    const visibleLinks = launchpad.links.filter((link) =>
       link.title.toLowerCase().includes(search.trim().toLowerCase()),
     );
-  }, [launchpad.links, search]);
+    return sortLinks(visibleLinks, sortMode);
+  }, [launchpad.links, search, sortMode]);
 
   const handleOpenAdmin = () => {
     if (getStoredToken()) {
@@ -61,10 +81,8 @@ export default function LaunchpadPage() {
 
   return (
     <main className="page-enter min-h-screen">
-      <div className="app-shell flex min-h-screen flex-col gap-10">
-        <BrandHeader totalLinks={launchpad.links.length} />
-
-        <SearchBar value={search} onChange={setSearch} />
+      <div className="app-shell flex min-h-screen flex-col gap-8 pt-8 md:pt-10">
+        <SearchBar value={search} onChange={setSearch} sortMode={sortMode} onSortChange={setSortMode} />
 
         <section
           className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-8"

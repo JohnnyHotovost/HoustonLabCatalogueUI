@@ -11,6 +11,7 @@ import {
   fetchAdminLinks,
   fetchAdminSettings,
   fetchCurrentAdmin,
+  getApiErrorMessage,
   getStoredToken,
   importAdminLinks,
   reorderAdminLinks,
@@ -46,7 +47,6 @@ export default function AdminPage() {
   const [adminUser, setAdminUser] = useState(null);
   const [links, setLinks] = useState([]);
   const [customOrderLinks, setCustomOrderLinks] = useState([]);
-  const [settings, setSettings] = useState(null);
   const [settingsDraft, setSettingsDraft] = useState(emptySettings);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -73,7 +73,6 @@ export default function AdminPage() {
       setAdminUser(me);
       setLinks(loadedLinks);
       setCustomOrderLinks([...loadedLinks].sort((a, b) => a.custom_order - b.custom_order));
-      setSettings(loadedSettings);
       setSettingsDraft({
         sort_mode: loadedSettings.sort_mode,
         open_in_new_tab: loadedSettings.open_in_new_tab,
@@ -124,7 +123,7 @@ export default function AdminPage() {
       setEditingLink(null);
       await loadAdminData(token);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Uložení se nepodařilo.");
+      toast.error(getApiErrorMessage(error, "Uložení se nepodařilo."));
     } finally {
       setSavingLink(false);
     }
@@ -141,19 +140,18 @@ export default function AdminPage() {
       toast.success("Položka byla smazána.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Smazání se nepodařilo.");
+      toast.error(getApiErrorMessage(error, "Smazání se nepodařilo."));
     }
   };
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
-      const updated = await updateAdminSettings(token, settingsDraft);
-      setSettings(updated);
+      await updateAdminSettings(token, settingsDraft);
       toast.success("Nastavení bylo uloženo.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Nastavení se nepodařilo uložit.");
+      toast.error(getApiErrorMessage(error, "Nastavení se nepodařilo uložit."));
     } finally {
       setSavingSettings(false);
     }
@@ -166,7 +164,7 @@ export default function AdminPage() {
       toast.success("Vlastní pořadí bylo uloženo.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Pořadí se nepodařilo uložit.");
+      toast.error(getApiErrorMessage(error, "Pořadí se nepodařilo uložit."));
     } finally {
       setSavingOrder(false);
     }
@@ -201,7 +199,7 @@ export default function AdminPage() {
       toast.success("Import proběhl v pořádku.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error("Importovaný soubor není validní JSON export.");
+      toast.error(getApiErrorMessage(error, "Importovaný soubor není validní JSON export."));
     } finally {
       event.target.value = "";
     }
@@ -216,7 +214,7 @@ export default function AdminPage() {
       setAdminUser({ username: data.username });
       toast.success("Admin přihlášení bylo změněno.");
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Změna přihlášení se nepodařila.");
+      toast.error(getApiErrorMessage(error, "Změna přihlášení se nepodařila."));
     } finally {
       setSavingCredentials(false);
     }
@@ -277,7 +275,7 @@ export default function AdminPage() {
               <Upload className="mr-2 h-4 w-4" />
               Import
             </Button>
-            <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImport} />
+            <input ref={fileInputRef} type="file" accept="application/json" className="hidden" data-testid="admin-import-input" onChange={handleImport} />
             <Button
               type="button"
               className="rounded-xl bg-slate-900 hover:bg-slate-800"
@@ -434,6 +432,7 @@ export default function AdminPage() {
         onSubmit={handleSaveLink}
         editingLink={editingLink}
         loading={savingLink}
+        token={token}
       />
     </main>
   );

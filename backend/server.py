@@ -1,11 +1,14 @@
+import asyncio
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -32,6 +35,9 @@ app = FastAPI(title="Autoservis Launchpad API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+request_headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+}
 
 
 def now_iso() -> str:
@@ -201,8 +207,19 @@ class ImportLinkPayload(LinkPayload):
 class ImportPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    settings: SettingsUpdatePayload
+    settings: Optional[dict] = None
     links: list[ImportLinkPayload] = Field(default_factory=list)
+
+
+class LogoDiscoveryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        return normalize_http_url(value)
 
 
 logging.basicConfig(
@@ -272,6 +289,66 @@ def clean_link_payload(payload: dict) -> dict:
     if cleaned.get("logo_data") == "":
         cleaned["logo_data"] = None
     return cleaned
+
+
+def absolute_logo_url(base_url: str, candidate: Optional[str]) -> Optional[str]:
+    if not candidate:
+        return None
+    return urljoin(base_url, candidate.strip())
+
+
+def is_likely_image_url(url: str) -> bool:
+    lowered = url.lower()
+    return any(lowered.endswith(ext) for ext in (".ico", ".png", ".jpg", ".jpeg", ".svg", ".webp"))
+
+
+def extract_logo_candidates(page_url: str, html: str) -> list[tuple[str, str]]:
+    patterns = [
+        (r'<link[^>]+rel=["\'][^"\']*(?:icon|apple-touch-icon)[^"\']*["\'][^>]+href=["\']([^"\']+)["\']', "icon"),
+        (r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']', "meta-image"),
+    ]
+    candidates: list[tuple[str, str]] = []
+
+    for pattern, source in patterns:
+        matches = re.findall(pattern, html, flags=re.IGNORECASE)
+        for match in matches:
+            absolute = absolute_logo_url(page_url, match)
+            if absolute:
+                candidates.append((absolute, source))
+
+    parsed = urlparse(page_url)
+    favicon_base = f"{parsed.scheme}://{parsed.netloc}"
+    candidates.extend(
+        [
+            (f"{favicon_base}/favicon.ico", "fallback-favicon"),
+            (f"{favicon_base}/apple-touch-icon.png", "fallback-apple-touch-icon"),
+        ]
+    )
+
+    deduplicated: list[tuple[str, str]] = []
+    seen = set()
+    for candidate, source in candidates:
+        if candidate not in seen:
+            seen.add(candidate)
+            deduplicated.append((candidate, source))
+    return deduplicated
+
+
+def discover_site_logo(url: str) -> dict:
+    page_response = requests.get(url, headers=request_headers, timeout=8)
+    page_response.raise_for_status()
+    html = page_response.text[:100000]
+
+    for candidate_url, source in extract_logo_candidates(url, html):
+        try:
+            image_response = requests.get(candidate_url, headers=request_headers, timeout=6, stream=True)
+            content_type = image_response.headers.get("content-type", "")
+            if image_response.ok and (content_type.startswith("image/") or is_likely_image_url(candidate_url)):
+                return {"found": True, "logo_url": candidate_url, "source": source}
+        except requests.RequestException:
+            continue
+
+    return {"found": False, "logo_url": None, "source": None}
 
 
 async def seed_links_if_empty() -> None:
@@ -395,6 +472,16 @@ async def change_credentials(payload: AdminPasswordChangeRequest, admin: dict = 
     }
 
 
+@api_router.post("/admin/discover-logo")
+async def discover_logo(payload: LogoDiscoveryRequest, _: dict = Depends(get_admin_from_token)):
+    try:
+        return await asyncio.to_thread(discover_site_logo, payload.url)
+    except requests.RequestException:
+        parsed = urlparse(payload.url)
+        fallback_url = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+        return {"found": True, "logo_url": fallback_url, "source": "fallback-favicon"}
+
+
 @api_router.get("/admin/settings", response_model=LaunchpadSettings)
 async def get_admin_settings(_: dict = Depends(get_admin_from_token)):
     return await get_settings()
@@ -431,6 +518,13 @@ async def create_link(payload: LinkPayload, _: dict = Depends(get_admin_from_tok
     return document
 
 
+@api_router.put("/admin/links/reorder/items")
+async def reorder_links(payload: ReorderPayload, _: dict = Depends(get_admin_from_token)):
+    for index, link_id in enumerate(payload.link_ids):
+        await db.links.update_one({"id": link_id}, {"$set": {"custom_order": index, "updated_at": now_iso()}})
+    return {"success": True}
+
+
 @api_router.put("/admin/links/{link_id}", response_model=LaunchpadLink)
 async def update_link(link_id: str, payload: LinkUpdatePayload, _: dict = Depends(get_admin_from_token)):
     existing = await db.links.find_one({"id": link_id}, {"_id": 0})
@@ -450,13 +544,6 @@ async def delete_link(link_id: str, _: dict = Depends(get_admin_from_token)):
     return {"success": True}
 
 
-@api_router.put("/admin/links/reorder-items")
-async def reorder_links(payload: ReorderPayload, _: dict = Depends(get_admin_from_token)):
-    for index, link_id in enumerate(payload.link_ids):
-        await db.links.update_one({"id": link_id}, {"$set": {"custom_order": index, "updated_at": now_iso()}})
-    return {"success": True}
-
-
 @api_router.get("/admin/export")
 async def export_links(_: dict = Depends(get_admin_from_token)):
     settings = await get_settings()
@@ -467,9 +554,15 @@ async def export_links(_: dict = Depends(get_admin_from_token)):
 @api_router.post("/admin/import")
 async def import_links(payload: ImportPayload, _: dict = Depends(get_admin_from_token)):
     settings = await get_settings()
+    imported_settings_source = payload.settings or settings
+    imported_settings = SettingsUpdatePayload(
+        sort_mode=imported_settings_source.get("sort_mode", settings["sort_mode"]),
+        open_in_new_tab=imported_settings_source.get("open_in_new_tab", settings["open_in_new_tab"]),
+        show_inactive_public=imported_settings_source.get("show_inactive_public", settings["show_inactive_public"]),
+    )
     await db.settings.update_one(
         {"id": settings["id"]},
-        {"$set": {**payload.settings.model_dump(), "id": settings["id"]}},
+        {"$set": {**imported_settings.model_dump(), "id": settings["id"]}},
     )
 
     await db.links.delete_many({})

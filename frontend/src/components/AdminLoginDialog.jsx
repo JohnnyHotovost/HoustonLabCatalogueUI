@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { loginAdmin, setStoredToken } from "../api";
+import { getApiErrorMessage, loginAdmin, setStoredToken } from "../api";
 import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
@@ -27,7 +25,7 @@ export const AdminLoginDialog = ({ open, onOpenChange, onSuccess }) => {
       setForm({ username: "", password: "" });
       onSuccess();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Přihlášení se nepodařilo.");
+      toast.error(getApiErrorMessage(error, "Přihlášení se nepodařilo."));
     } finally {
       setLoading(false);
     }
@@ -35,48 +33,34 @@ export const AdminLoginDialog = ({ open, onOpenChange, onSuccess }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-[1.5rem] border-slate-200 p-0 sm:max-w-md" data-testid="admin-login-dialog">
-        <div className="rounded-t-[1.5rem] bg-slate-900 px-6 py-6 text-white">
-          <div className="mb-4 inline-flex rounded-full bg-white/10 p-3" data-testid="admin-login-icon">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-semibold text-white" data-testid="admin-login-title">
-              Přihlášení do správy
-            </DialogTitle>
-            <DialogDescription className="text-slate-300" data-testid="admin-login-description">
-              Jen pro administrátora. Zaměstnanci vidí pouze rozcestník.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className="rounded-[1.5rem] border-slate-200 bg-white p-6 sm:max-w-sm" data-testid="admin-login-dialog">
+        <DialogHeader className="sr-only">
+          <DialogTitle data-testid="admin-login-title">Admin login</DialogTitle>
+        </DialogHeader>
 
-        <form className="space-y-4 px-6 pb-6 pt-5" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700" htmlFor="admin-username">
-              Uživatelské jméno
-            </label>
+        <form className="space-y-3" onSubmit={handleSubmit}>
+          <div>
             <Input
               id="admin-username"
               autoComplete="username"
-              className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base"
+              className="h-12 rounded-xl border-slate-200 bg-white text-base"
               data-testid="admin-login-username-input"
-              placeholder="Zadej jméno"
+              placeholder="Login"
+              aria-label="Login"
               value={form.username}
               onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700" htmlFor="admin-password">
-              Heslo
-            </label>
+          <div>
             <Input
               id="admin-password"
               type="password"
               autoComplete="current-password"
-              className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base"
+              className="h-12 rounded-xl border-slate-200 bg-white text-base"
               data-testid="admin-login-password-input"
-              placeholder="Zadej heslo"
+              placeholder="Password"
+              aria-label="Password"
               value={form.password}
               onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
             />
