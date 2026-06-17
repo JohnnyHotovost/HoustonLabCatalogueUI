@@ -17,6 +17,8 @@ import { LinkCard } from "../components/LinkCard";
 import { SearchBar } from "../components/SearchBar";
 import { SortableLaunchpadGrid } from "../components/SortableLaunchpadGrid";
 
+const LOCAL_CUSTOM_ORDER_KEY = "catalogue-local-custom-order";
+
 const sortLinks = (links, sortMode) => {
   const sorted = [...links];
 
@@ -52,6 +54,20 @@ export default function LaunchpadPage() {
   const [customUnlocked, setCustomUnlocked] = useState(false);
   const [customDraftLinks, setCustomDraftLinks] = useState([]);
   const [savingCustomOrder, setSavingCustomOrder] = useState(false);
+  const [localCustomOrderIds, setLocalCustomOrderIds] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem(LOCAL_CUSTOM_ORDER_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const applyStoredLocalOrder = (links, orderedIds) => {
+    const linkMap = new Map(links.map((link) => [link.id, link]));
+    const orderedLinks = orderedIds.map((id) => linkMap.get(id)).filter(Boolean);
+    const remainingLinks = links.filter((link) => !orderedIds.includes(link.id));
+    return [...orderedLinks, ...remainingLinks];
+  };
 
   useEffect(() => {
     const validateAdmin = async () => {
@@ -88,8 +104,11 @@ export default function LaunchpadPage() {
   }, []);
 
   useEffect(() => {
-    setCustomDraftLinks(sortLinks(launchpad.links, "custom"));
-  }, [launchpad.links]);
+    const baseCustomLinks = sortLinks(launchpad.links, "custom");
+    setCustomDraftLinks(
+      isAdmin ? baseCustomLinks : applyStoredLocalOrder(baseCustomLinks, localCustomOrderIds),
+    );
+  }, [isAdmin, launchpad.links, localCustomOrderIds]);
 
   useEffect(() => {
     if (sortMode !== "custom") {
@@ -98,11 +117,18 @@ export default function LaunchpadPage() {
   }, [sortMode]);
 
   const filteredLinks = useMemo(() => {
-    const visibleLinks = launchpad.links.filter((link) =>
+    const sourceLinks =
+      sortMode === "custom"
+        ? isAdmin
+          ? sortLinks(launchpad.links, "custom")
+          : applyStoredLocalOrder(sortLinks(launchpad.links, "custom"), localCustomOrderIds)
+        : sortLinks(launchpad.links, sortMode);
+
+    const visibleLinks = sourceLinks.filter((link) =>
       link.title.toLowerCase().includes(search.trim().toLowerCase()),
     );
-    return sortLinks(visibleLinks, sortMode);
-  }, [launchpad.links, search, sortMode]);
+    return sortMode === "custom" ? visibleLinks : sortLinks(visibleLinks, sortMode);
+  }, [isAdmin, launchpad.links, localCustomOrderIds, search, sortMode]);
 
   const handleOpenAdmin = () => {
     if (adminToken) {
@@ -128,30 +154,41 @@ export default function LaunchpadPage() {
   };
 
   const handleToggleCustomOrder = async () => {
-    if (!isAdmin || sortMode !== "custom") {
+    if (sortMode !== "custom") {
       return;
     }
 
     if (!customUnlocked) {
       setSearch("");
+      setCustomDraftLinks(
+        isAdmin
+          ? sortLinks(launchpad.links, "custom")
+          : applyStoredLocalOrder(sortLinks(launchpad.links, "custom"), localCustomOrderIds),
+      );
       setCustomUnlocked(true);
       return;
     }
 
     setSavingCustomOrder(true);
     try {
-      const visibleIds = customDraftLinks.map((link) => link.id);
-      const hiddenIds = adminLinks
-        .filter((link) => !visibleIds.includes(link.id))
-        .sort((first, second) => first.custom_order - second.custom_order)
-        .map((link) => link.id);
+      if (isAdmin) {
+        const visibleIds = customDraftLinks.map((link) => link.id);
+        const hiddenIds = adminLinks
+          .filter((link) => !visibleIds.includes(link.id))
+          .sort((first, second) => first.custom_order - second.custom_order)
+          .map((link) => link.id);
 
-      await reorderAdminLinks(adminToken, [...visibleIds, ...hiddenIds]);
-      const refreshedLaunchpad = await fetchLaunchpad();
-      const refreshedAdminLinks = await fetchAdminLinks(adminToken);
-      setLaunchpad(refreshedLaunchpad);
-      setAdminLinks(refreshedAdminLinks);
-      setCustomDraftLinks(sortLinks(refreshedLaunchpad.links, "custom"));
+        await reorderAdminLinks(adminToken, [...visibleIds, ...hiddenIds]);
+        const refreshedLaunchpad = await fetchLaunchpad();
+        const refreshedAdminLinks = await fetchAdminLinks(adminToken);
+        setLaunchpad(refreshedLaunchpad);
+        setAdminLinks(refreshedAdminLinks);
+        setCustomDraftLinks(sortLinks(refreshedLaunchpad.links, "custom"));
+      } else {
+        const orderedIds = customDraftLinks.map((link) => link.id);
+        window.localStorage.setItem(LOCAL_CUSTOM_ORDER_KEY, JSON.stringify(orderedIds));
+        setLocalCustomOrderIds(orderedIds);
+      }
       setCustomUnlocked(false);
       toast.success("Vlastní pořadí bylo uloženo.");
     } catch (error) {
@@ -159,6 +196,14 @@ export default function LaunchpadPage() {
     } finally {
       setSavingCustomOrder(false);
     }
+  };
+
+  const handleResetLocalCustomOrder = () => {
+    window.localStorage.removeItem(LOCAL_CUSTOM_ORDER_KEY);
+    setLocalCustomOrderIds([]);
+    setCustomUnlocked(false);
+    setCustomDraftLinks(sortLinks(launchpad.links, "custom"));
+    toast.success("Lokální pořadí bylo vráceno na výchozí.");
   };
 
   return (
@@ -169,10 +214,12 @@ export default function LaunchpadPage() {
           onChange={setSearch}
           sortMode={sortMode}
           onSortChange={setSortMode}
-          showCustomLock={sortMode === "custom" && isAdmin}
+          showCustomLock={sortMode === "custom"}
           customUnlocked={customUnlocked}
           onToggleCustomLock={handleToggleCustomOrder}
           customLockDisabled={savingCustomOrder}
+          showCustomReset={sortMode === "custom" && !isAdmin}
+          onResetCustomOrder={handleResetLocalCustomOrder}
         />
 
         {loading ? (

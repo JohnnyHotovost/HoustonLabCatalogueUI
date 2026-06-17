@@ -17,6 +17,8 @@ export const SearchBar = ({
   customUnlocked = false,
   onToggleCustomLock,
   customLockDisabled = false,
+  showCustomReset = false,
+  onResetCustomOrder,
 }) => {
   return (
     <div className="panel-surface mx-auto w-full max-w-5xl p-4 md:p-5" data-testid="search-wrapper">
@@ -59,6 +61,17 @@ export const SearchBar = ({
               aria-label={customUnlocked ? "Zamknout vlastní pořadí" : "Odemknout vlastní pořadí"}
             >
               {customUnlocked ? <LockOpen className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+            </button>
+          ) : null}
+
+          {showCustomReset ? (
+            <button
+              type="button"
+              onClick={onResetCustomOrder}
+              className="inline-flex h-16 items-center justify-center rounded-[1.25rem] border-2 border-slate-200 bg-white px-4 text-sm font-medium text-slate-500 shadow-sm transition-colors hover:text-slate-900"
+              data-testid="custom-order-reset-button"
+            >
+              Reset
             </button>
           ) : null}
         </div>
