@@ -4,7 +4,7 @@ const configuredBackendUrl = process.env.REACT_APP_BACKEND_URL?.trim();
 
 export const BACKEND_URL = configuredBackendUrl || "";
 export const API_BASE = BACKEND_URL ? `${BACKEND_URL}/api` : "/api";
-export const ADMIN_TOKEN_KEY = "autoservis-admin-token";
+export const ADMIN_TOKEN_KEY = "catalogue-admin-token";
 
 const api = axios.create({
   baseURL: API_BASE,

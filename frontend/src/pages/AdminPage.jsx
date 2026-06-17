@@ -177,7 +177,7 @@ export default function AdminPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "autoservis-rozcestnik-export.json";
+      anchor.download = "katalogovy-rozcestnik-export.json";
       anchor.click();
       URL.revokeObjectURL(url);
       toast.success("Export je připravený.");

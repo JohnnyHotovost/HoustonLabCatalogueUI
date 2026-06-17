@@ -3,26 +3,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: autoservis-launchpad:stable
-    platform: linux/arm64
+    image: catalogue-app:stable
     restart: unless-stopped
     depends_on:
       - mongo
     environment:
       PORT: 8080
       MONGO_URL: mongodb://mongo:27017
-      DB_NAME: autoservis_launchpad
+      DB_NAME: catalogue_portal
       CORS_ORIGINS: "*"
       JWT_SECRET: change-this-long-random-secret
       TEMP_ADMIN_USERNAME: admin
-      TEMP_ADMIN_PASSWORD: servis1234
+      TEMP_ADMIN_PASSWORD: HoustonLab10
     ports:
       - "8080:8080"
 
   mongo:
     image: mongo:7.0
-    platform: linux/arm64
     restart: unless-stopped
-    command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
     volumes:
-      - ./qnap-data/mongodb:/data/db
+      - ./catalogue-data/mongodb:/data/db

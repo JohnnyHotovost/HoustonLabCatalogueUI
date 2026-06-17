@@ -35,7 +35,7 @@ temp_admin_password = os.environ["TEMP_ADMIN_PASSWORD"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[database_name]
 
-app = FastAPI(title="Autoservis Launchpad API")
+app = FastAPI(title="Catalogue Portal API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -273,7 +273,7 @@ def sort_links(links: list[dict], sort_mode: str) -> list[dict]:
     if sort_mode == "clicks":
         ordered = sorted(links, key=lambda item: (-item["clicks"], item["title"].lower()))
     elif sort_mode == "custom":
-        ordered = sorted(links, key=lambda item: (item["custom_order"], item["title"].lower()))
+        return sorted(links, key=lambda item: (item["custom_order"], item["title"].lower()))
     elif sort_mode == "latest":
         ordered = sorted(links, key=lambda item: parse_datetime(item["created_at"]), reverse=True)
     else:
@@ -360,21 +360,21 @@ async def seed_links_if_empty() -> None:
         return
 
     sample_links = [
-        ("Auto Kelly", "https://www.autokelly.cz"),
-        ("ELIT", "https://www.elit.cz"),
-        ("Inter Cars", "https://cz.intercars.eu"),
-        ("Aukro díly", "https://aukro.cz"),
-        ("Heureka", "https://www.heureka.cz"),
-        ("Google Mapy", "https://maps.google.com"),
-        ("DMS Servis", "https://example.com/dms-servis"),
-        ("Pneuservis katalog", "https://example.com/pneuservis"),
-        ("Diagnostika", "https://example.com/diagnostika"),
-        ("Ceník práce", "https://example.com/cenik-prace"),
-        ("Dodavatel olejů", "https://example.com/oleje"),
-        ("Fleet portál", "https://example.com/fleet"),
-        ("Škoda katalog", "https://example.com/skoda"),
-        ("VW katalog", "https://example.com/vw"),
+        ("Katalog 01", "https://example.com/katalog-01"),
+        ("Katalog 02", "https://example.com/katalog-02"),
+        ("Dodavatelský portál", "https://example.com/dodavatelsky-portal"),
+        ("Dokumentace", "https://example.com/dokumentace"),
+        ("Ceníky", "https://example.com/ceniky"),
+        ("Objednávky", "https://example.com/objednavky"),
+        ("Znalostní báze", "https://example.com/znalostni-baze"),
+        ("Reference", "https://example.com/reference"),
+        ("Fleet portál", "https://example.com/fleet-portal"),
+        ("Reporting", "https://example.com/reporting"),
+        ("Portál partnerů", "https://example.com/partneri"),
+        ("Asset knihovna", "https://example.com/assets"),
+        ("Status panel", "https://example.com/status"),
         ("Interní návody", "https://example.com/navody"),
+        ("Knowledge Hub", "https://example.com/knowledge-hub"),
     ]
 
     documents = []
@@ -419,7 +419,7 @@ async def ensure_seed_data() -> None:
 
 @api_router.get("/")
 async def root():
-    return {"message": "Autoservis launchpad API běží"}
+    return {"message": "Catalogue portal API běží"}
 
 
 @api_router.get("/launchpad", response_model=LaunchpadResponse)

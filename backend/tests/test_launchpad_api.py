@@ -22,7 +22,7 @@ def _read_frontend_env_backend_url() -> str | None:
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or _read_frontend_env_backend_url()
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "servis1234"
+ADMIN_PASSWORD = "HoustonLab10"
 
 
 @pytest.fixture(scope="session")

@@ -13,10 +13,10 @@ export const BrandHeader = ({ totalLinks }) => {
 
         <div className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500" data-testid="brand-badge">
-            Interní rozcestník
+            Interní katalogy
           </p>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900 md:text-5xl" data-testid="brand-title">
-            Autoservis Portál
+            Katalogový rozcestník
           </h1>
           <p className="max-w-2xl text-base text-slate-600 md:text-lg" data-testid="brand-subtitle">
             Otevři potřebný katalog nebo web jedním kliknutím. Všechno důležité je hned po ruce.
