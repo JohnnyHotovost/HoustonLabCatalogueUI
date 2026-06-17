@@ -18,6 +18,7 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní katalogový rozcestník
 - Automaticky zkusit načíst favicon/logo podle URL webu a ponechat ruční override
 - Název v UI: `Katalogový rozcestník`
 - Stable snapshot připravený pro self-hosting na běžném Linux serveru / Proxmox VM / Docker hostu
+- Vlastní řazení má fungovat i bez přihlášení, ale jen lokálně v localStorage
 
 ## Architektura a rozhodnutí
 - Frontend: React + Tailwind + shadcn/ui komponenty
@@ -28,7 +29,10 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní katalogový rozcestník
 - Loga: vlastní upload ukládaný jako data URL do databáze, nebo externí logo URL; navíc server-side auto-discovery favicon/logo podle zadané URL
 - Statistiky: jednoduché interní click count na každé položce
 - Řazení: alphabetical / clicks / latest / custom
-- Custom order: drag-and-drop s bezpečnostním zámkem v režimu vlastního pořadí
+- Custom order:
+  - admin = globální DB pořadí
+  - nepřihlášený uživatel = lokální pořadí v `localStorage` pod klíčem `catalogue-local-custom-order`
+- Lock/unlock režim chrání proti náhodnému přesouvání; pořadí se ukládá až po znovuzamčení
 - Self-hosting varianta: single-service app container (FastAPI + statický frontend build) + MongoDB container
 
 ## Persony
@@ -48,25 +52,29 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní katalogový rozcestník
 - Import/export seznamu odkazů
 - Možnost změnit admin přihlášení uvnitř administrace
 - Stable snapshot vhodný pro dlouhodobý self-hosting na běžném serveru
+- Lokální custom order bez user účtů a bez zápisu do DB
 
 ## Co je implementováno
-### 2026-04-22
+### 2026-06-17
 - Hotová veřejná launchpad stránka bez horního headeru; první viditelný prvek je search bar
 - Vedle search baru je minimalistický sort control: A–Z, nejnavštěvovanější, nejnovější, vlastní pořadí
 - Velké karty s čistým vzhledem, placeholder fallbackem pro chybějící/rozbitá loga a otevíráním odkazů podle nastavení
 - Nenápadné admin tlačítko dole vlevo
 - Minimalistický admin login modal: bílé pozadí, Login, Password, jedno tlačítko
-- Opravený close button login modalu s korektním paddingem uvnitř boxu
+- Opravený close button login modalu s korektním paddingem uvnitř boxu; UI testováno na desktopu i menší šířce
 - Admin dashboard se statistikami, nastavením zobrazení, změnou loginu a správou všech položek
 - Přidání / úprava / smazání položek
 - Přepínání řazení a ukládání vlastního pořadí přes drag-and-drop
-- Na veřejné stránce je pro admina dostupný zámek pro režim `vlastní pořadí`: odemknout → přeskládat → zamknout → uložit
+- Na veřejné stránce je pro custom sort dostupný lock režim:
+  - admin ukládá nové pořadí globálně do DB
+  - nepřihlášený uživatel ukládá nové pořadí lokálně do `localStorage`
+- Přidán minimalistický reset lokálního custom order zpět na globální výchozí pořadí
 - Click tracking a zobrazení kliků v adminu
 - Export/import JSON seznamu odkazů
 - Automatické načtení favicon/logo podle URL webu + možnost použít vlastní URL loga nebo ruční upload
 - Opravené backend flow pro reorder a export/import
 - Ošetřené frontend error messages, aby nepadaly na validačních chybách API
-- Seed vyčištěný zpět na 15 placeholder položek, alphabetical default, open-in-new-tab default zapnutý
+- Stable seed vrácen na 15 neutrálních placeholder položek, alphabetical default, open-in-new-tab default zapnutý
 - Připravený stable self-hosting snapshot pro běžný server:
   - `Dockerfile`
   - `docker-compose.yml`
