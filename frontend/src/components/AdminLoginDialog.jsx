@@ -34,13 +34,13 @@ export const AdminLoginDialog = ({ open, onOpenChange, onSuccess }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="rounded-[1.5rem] border-slate-200 bg-white p-6 pt-14 sm:max-w-sm" data-testid="admin-login-dialog">
+      <DialogContent aria-describedby={undefined} className="rounded-[1.5rem] border-slate-200 bg-white p-6 sm:max-w-sm" data-testid="admin-login-dialog">
         <DialogHeader className="sr-only">
           <DialogTitle data-testid="admin-login-title">Admin login</DialogTitle>
           <DialogDescription id="admin-login-description">Přihlášení administrátora.</DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-3" onSubmit={handleSubmit}>
+        <form className="space-y-3 pt-7" onSubmit={handleSubmit}>
           <div>
             <Input
               id="admin-username"

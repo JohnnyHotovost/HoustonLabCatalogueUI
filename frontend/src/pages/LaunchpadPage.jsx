@@ -220,11 +220,13 @@ export default function LaunchpadPage() {
       <AdminLoginDialog
         open={loginOpen}
         onOpenChange={setLoginOpen}
-        onSuccess={() => {
+        onSuccess={async () => {
           setLoginOpen(false);
-          setAdminToken(getStoredToken());
+          const storedToken = getStoredToken();
+          setAdminToken(storedToken);
           setIsAdmin(true);
-          navigate("/admin");
+          const loadedAdminLinks = await fetchAdminLinks(storedToken);
+          setAdminLinks(loadedAdminLinks);
         }}
       />
     </main>
