@@ -61,7 +61,7 @@ Vytvořit moderní, rychlý a velmi jednoduchý interní katalogový rozcestník
 - Velké karty s čistým vzhledem, placeholder fallbackem pro chybějící/rozbitá loga a otevíráním odkazů podle nastavení
 - Nenápadné admin tlačítko dole vlevo
 - Minimalistický admin login modal: bílé pozadí, Login, Password, jedno tlačítko
-- Opravený close button login modalu s korektním paddingem uvnitř boxu; UI testováno na desktopu i menší šířce
+- Opravený login modal: close button je uvnitř boxu a modal je znovu správně centrovaný v viewportu; UI testováno na desktopu, laptopu i menší šířce
 - Admin dashboard se statistikami, nastavením zobrazení, změnou loginu a správou všech položek
 - Přidání / úprava / smazání položek
 - Přepínání řazení a ukládání vlastního pořadí přes drag-and-drop
