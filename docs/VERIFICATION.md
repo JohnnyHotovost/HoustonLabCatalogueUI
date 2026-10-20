@@ -50,3 +50,17 @@ Použita dovednost [emil-design-eng](https://github.com/emilkowalski/skills/tree
 - Automatické hledání log z internetu v tomto cloudu nemá funkční externí DNS. Síťové chyby jsou ošetřené; ochrany SSRF, pinning IP, TLS identita, limity a přesměrování mají regresní testy. Nahrání PNG a náhradní logo byly ověřeny v prohlížeči. Úspěšné vyhledání na živém veřejném webu zůstává neověřené.
 - Import přepíná kolekci odkazů atomicky, ale nastavení a odkazy nejsou jednou transakcí. Běží jeden worker; více workerů vyžaduje databázovou koordinaci.
 - Nasazení na produkční server a jeho HTTPS reverzní proxy nebylo provedeno.
+
+## Zachování dat při změně vzhledu na Proxmoxu
+
+Ověřeno 21. října 2026 na oddělených Docker kontejnerech. Opakovatelné ověření:
+
+```bash
+python scripts/test-update-preservation.py --image catalogue-app:stable
+```
+
+Test vytvoří vlastní MongoDB a náhodné testovací přihlášení, upraví weby, loga, nastavení, pořadí a statistiky a změní jméno i heslo účtu. Následně vymění pouze aplikaci za **jiný image s odlišným HTML titulem**. Kontroluje úplnou shodu všech tří kolekcí a indexů, veřejné API i admin export a přihlášení novými údaji. Ověřuje také, že se kontejner MongoDB nezměnil. Potom provede skutečný `mongodump` a `mongorestore` do druhé databáze a porovná celý obsah. Test prošel a své dočasné kontejnery, volumes, síť i image uklidil.
+
+Skript `scripts/update-app.sh --no-build` byl navíc spuštěný proti testovacímu Compose stacku: vytvořil ověřený archiv všech dat a vyměnil jen aplikaci. Test se záměrně vadným image ověřil návrat k předchozímu funkčnímu image; databázový kontejner zůstal stejný. Cesta `MONGO_DATA_DIR` zachovává zpětně kompatibilní výchozí mount.
+
+Skutečný Proxmox server nebyl připojen; nastavení jeho disků a záloh musí správce ověřit při nasazení.

@@ -9,3 +9,5 @@
 - Výchozí jméno správce je `admin`; heslo určuje `TEMP_ADMIN_PASSWORD`. Existující účty se při restartu nepřepisují.
 
 Data MongoDB zůstávají v `catalogue-data/mongodb`. Nesdílejte přihlašovací údaje ani databázové soubory v Gitu.
+
+Vzhled lze měnit a nasazovat samostatně se zachováním účtů, webů, log a nastavení. Pro Proxmox doporučujeme pevné `MONGO_DATA_DIR` mimo zdrojový kód a `./scripts/update-app.sh`, který vytvoří úplnou zálohu a vymění jen aplikaci. Podrobnosti a přesun existujících dat jsou v deployment návodu.

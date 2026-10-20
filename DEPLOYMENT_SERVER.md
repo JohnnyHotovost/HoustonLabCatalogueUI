@@ -23,17 +23,61 @@ Prohlížečem otevřete port `8080` serveru. Aplikace se ve výchozím nastaven
 
 Kontejner aplikace běží bez oprávnění roota a čeká na připravenou databázi. Compose i image obsahují kontrolu zdraví. Aplikace záměrně běží v jednom workeru; nezvyšujte jejich počet bez úpravy koordinace importu a ochrany přihlášení.
 
-## Persistentní data a aktualizace
+## Proxmox: změny vzhledu bez ztráty nastavení
 
-MongoDB uchovává účty, odkazy, vložená loga, statistiky a nastavení v `./catalogue-data/mongodb`. Tento mount zůstává kompatibilní s předchozí verzí Compose.
+V Linux VM na Proxmoxu běží dvě oddělené služby: `app` (vyměnitelný frontend a backend) a `mongo` (trvalá data). Nový vzhled se připraví ve `frontend/` a nasadí novým image aplikace. Databáze zůstává stejná.
 
-Před aktualizací vytvořte export v administraci a zálohu MongoDB (`mongodump`, nebo kopii dat při zastavené databázi). Prostá kopie běžících databázových souborů není spolehlivá záloha.
+| Co se uchovává | Kde |
+| --- | --- |
+| Weby, jejich pořadí, aktivní stav a oblíbené položky | MongoDB |
+| Správcovské účty a hesla | MongoDB; hesla jako hash |
+| Nahraná loga, nastavení zobrazení a statistiky | MongoDB |
+| JWT klíč a konfigurace připojení | Původní `.env` / soubor předaný přes `--env-file` |
+| Osobní pořadí návštěvníka a přihlášení | Jeho prohlížeč, pod stejnou doménou, portem a HTTP/HTTPS |
 
-```bash
-docker compose up -d --build
+Výchozí cesta MongoDB je stále `./catalogue-data/mongodb`, takže aktualizace stávající instalace nic nepřesouvá. Pro **novou instalaci** doporučujeme pevnou cestu mimo složku s kódem:
+
+```dotenv
+MONGO_DATA_DIR=/srv/houstonlab/data/mongodb
 ```
 
-Restart ani `docker compose down` bind mount nemažou. Nemažte `catalogue-data/mongodb`, pokud chcete data zachovat. Do Gitu nepatří `.env`, data ani zálohy.
+Nastavte ji v `.env` ještě před prvním spuštěním. Všechny budoucí verze musí používat stejnou cestu, databázi `catalogue_portal` a původní konfiguraci. Samotná změna cesty na prázdnou složku by zobrazila novou prázdnou instalaci, ačkoli původní data zůstala jinde.
+
+### Běžná aktualizace vzhledu
+
+Ve stejném checkoutu aktualizujte vybranou větev a spusťte:
+
+```bash
+git pull --ff-only
+./scripts/update-app.sh
+```
+
+Skript vyžaduje Bash, Python 3, gzip a Docker Compose s podporou `--wait`. Nejprve sestaví nový image za běhu původní aplikace. Poté krátce zastaví jen `app`, vytvoří úplný `mongodump` včetně účtů, ověří archiv a spustí nový `app`. Kontejner MongoDB se nevyměňuje. Při chybě nové aplikace zkusí obnovit předchozí image; trvalá data zůstávají na místě. Tato aktualizace vzhledu neprovádí migrace databáze a automatický návrat image není náhradou obnovy databáze po budoucí nekompatibilní migraci.
+
+Zálohy jsou ve výchozím nastavení v `catalogue-data/backups/`. Pro zálohy mimo checkout a konfiguraci na stálém místě lze použít:
+
+```bash
+CATALOGUE_BACKUP_DIR=/srv/houstonlab/backups ./scripts/update-app.sh \
+  --env-file /srv/houstonlab/config/catalogue.env
+```
+
+Soubor `catalogue.env` si předem bezpečně připravte z původní `.env` (oprávnění `600`). Nezveřejňujte jej v Gitu. Pokud image připravujete samostatně, použijte `./scripts/update-app.sh --no-build`; ostatní argumenty jsou globální přepínače Compose.
+
+**Při výměně vzhledu nepřepisujte `.env`, neměňte cestu MongoDB a nemažte datovou složku.** `TEMP_ADMIN_PASSWORD` se při existujícím účtu znovu nepoužije. JSON export z administrace obsahuje odkazy a nastavení, nikoli účty, proto sám nestačí jako úplná záloha.
+
+### Přesun dat existující instalace na pevnou cestu
+
+Pouhé doplnění `MONGO_DATA_DIR` data nepřesune. Při potřebě změnit umístění:
+
+1. Vytvořte a ověřte úplnou zálohu, uchovejte `.env` a poznamenejte původní cestu.
+2. Zastavte aplikaci i MongoDB pomocí `docker compose down`.
+3. Zkopírujte celou původní složku `catalogue-data/mongodb` do dosud neexistující cílové složky, se zachováním oprávnění a vlastníka (`cp -a`). Nekopírujte živé databázové soubory.
+4. Nastavte `MONGO_DATA_DIR` na novou absolutní cestu. Ostatní konfiguraci ponechte.
+5. Spusťte `docker compose up -d --no-build`, ověřte přihlášení, všechny weby, loga a nastavení. Původní kopii uchovejte do ověření zálohy a nové instalace.
+
+### Zálohy v Proxmoxu
+
+Plná záloha VM musí zahrnovat disk s MongoDB i konfiguraci. U LXC nebo externího bind mountu ověřte, že je příslušný mount skutečně součástí Proxmox záloh; nemusí být zahrnut automaticky. Pro obnovu databáze použijte `mongorestore --archive --gzip` proti zastavené aplikaci a správnému cíli. Obnova s `--drop` přepíše kolekce, proto ji nejprve vyzkoušejte na oddělené databázi. Zálohy databáze obsahují citlivá data a mají být přístupné pouze správci.
 
 ## Vývoj bez Dockeru
 

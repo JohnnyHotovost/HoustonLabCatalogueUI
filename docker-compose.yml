@@ -25,7 +25,7 @@ services:
     image: mongo:7.0
     restart: unless-stopped
     volumes:
-      - ./catalogue-data/mongodb:/data/db
+      - ${MONGO_DATA_DIR:-./catalogue-data/mongodb}:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"]
       interval: 5s
