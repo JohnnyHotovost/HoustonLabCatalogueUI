@@ -6,20 +6,29 @@ services:
     image: catalogue-app:stable
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     environment:
       PORT: 8080
       MONGO_URL: mongodb://mongo:27017
       DB_NAME: catalogue_portal
-      CORS_ORIGINS: "*"
-      JWT_SECRET: change-this-long-random-secret
-      TEMP_ADMIN_USERNAME: admin
-      TEMP_ADMIN_PASSWORD: HoustonLab10
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET:?Set a random JWT_SECRET in .env}
+      TEMP_ADMIN_USERNAME: ${TEMP_ADMIN_USERNAME:-admin}
+      TEMP_ADMIN_PASSWORD: ${TEMP_ADMIN_PASSWORD:?Set TEMP_ADMIN_PASSWORD in .env}
     ports:
-      - "8080:8080"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    security_opt:
+      - no-new-privileges:true
 
   mongo:
     image: mongo:7.0
     restart: unless-stopped
     volumes:
       - ./catalogue-data/mongodb:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s

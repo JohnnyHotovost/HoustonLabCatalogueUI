@@ -1,13 +1,9 @@
 import { Globe2, GripHorizontal } from "lucide-react";
 import { SafeLogoImage } from "./SafeLogoImage";
 
-export const LinkCard = ({ link, onClick, index, dragEnabled = false }) => {
+export const LinkCard = ({ link, onClick, dragEnabled = false, openInNewTab = false }) => {
   const logoSrc = link.logo_data || link.logo_url;
-  const cardClassName = `tile-enter soft-ring aspect-square rounded-[1.5rem] border border-slate-200 bg-white p-6 text-center transition-all duration-200 ${
-    dragEnabled
-      ? "cursor-grab border-dashed border-blue-200 bg-blue-50/40 shadow-md"
-      : "hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-  }`;
+  const cardClassName = `catalogue-card${dragEnabled ? " catalogue-card-draggable" : ""}`;
 
   const content = (
     <>
@@ -17,7 +13,7 @@ export const LinkCard = ({ link, onClick, index, dragEnabled = false }) => {
         </div>
       ) : null}
       <div className="flex h-full flex-col items-center justify-center gap-5">
-        <div className="flex h-24 w-24 items-center justify-center" data-testid={`launchpad-card-logo-${link.id}`}>
+        <div className="catalogue-card-logo" data-testid={`launchpad-card-logo-${link.id}`}>
           <SafeLogoImage
             src={logoSrc}
             alt={link.title}
@@ -29,7 +25,7 @@ export const LinkCard = ({ link, onClick, index, dragEnabled = false }) => {
           />
         </div>
 
-        <div className="line-clamp-2 text-lg font-semibold leading-tight text-slate-900 md:text-xl" data-testid={`launchpad-card-title-${link.id}`}>
+        <div className="catalogue-card-title" data-testid={`launchpad-card-title-${link.id}`}>
           {link.title}
         </div>
       </div>
@@ -38,21 +34,23 @@ export const LinkCard = ({ link, onClick, index, dragEnabled = false }) => {
 
   if (dragEnabled) {
     return (
-      <div className={cardClassName} style={{ animationDelay: `${index * 35}ms` }} data-testid={`launchpad-card-${link.id}`}>
+      <div className={cardClassName} data-testid={`launchpad-card-${link.id}`}>
         {content}
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
+    <a
+      href={link.url}
+      target={openInNewTab ? "_blank" : undefined}
+      rel="noopener noreferrer"
       onClick={onClick}
+      onAuxClick={(event) => { if (event.button === 1) onClick?.(event); }}
       className={cardClassName}
-      style={{ animationDelay: `${index * 35}ms` }}
       data-testid={`launchpad-card-${link.id}`}
     >
       {content}
-    </button>
+    </a>
   );
 };

@@ -97,3 +97,9 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Local persistent catalogue data and browser reports
+catalogue-data/
+playwright-report/
+test-results/
+!.env.example

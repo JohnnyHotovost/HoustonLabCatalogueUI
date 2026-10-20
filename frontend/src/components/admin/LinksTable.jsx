@@ -2,7 +2,7 @@ import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { SafeLogoImage } from "../SafeLogoImage";
 import { Button } from "../ui/button";
 
-export const LinksTable = ({ links, onEdit, onDelete }) => {
+export const LinksTable = ({ links, onEdit, onDelete, deletingId }) => {
   if (!links.length) {
     return (
       <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500" data-testid="admin-links-empty-state">
@@ -48,7 +48,7 @@ export const LinksTable = ({ links, onEdit, onDelete }) => {
                       <a
                         href={link.url}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
                         data-testid={`admin-link-url-${link.id}`}
                       >
@@ -94,6 +94,7 @@ export const LinksTable = ({ links, onEdit, onDelete }) => {
                       variant="destructive"
                       className="rounded-xl"
                       data-testid={`admin-link-delete-${link.id}`}
+                      disabled={!!deletingId}
                       onClick={() => onDelete(link)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />

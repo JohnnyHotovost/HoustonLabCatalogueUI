@@ -1,14 +1,11 @@
 # Katalogový rozcestník
 
-Tato větev je připravená jako **stable snapshot** aktuální funkční verze aplikace.
+Český rozcestník odkazů s vyhledáváním, místním řazením, oblíbenými položkami a administrací. FastAPI, React a MongoDB.
 
-## Co je v repozitáři připravené
-- produkční `Dockerfile`
-- `docker-compose.yml` pro běžný Linux server / Proxmox VM / Docker host
-- single-service app container (FastAPI + statický frontend build) + MongoDB container
-- dokumentace pro lokální běh a server deployment v `DEPLOYMENT_SERVER.md`
+- [Spuštění, vývoj a aktualizace](DEPLOYMENT_SERVER.md)
+- [Ověření změn a testy](docs/VERIFICATION.md)
+- `docker compose up -d --build` sestaví celou aplikaci ze zdrojů.
+- Před prvním spuštěním zkopírujte `.env.example` do `.env` a nastavte vlastní JWT klíč a heslo správce.
+- Výchozí jméno správce je `admin`; heslo určuje `TEMP_ADMIN_PASSWORD`. Existující účty se při restartu nepřepisují.
 
-## Rychlé odkazy
-- Deployment návod: `DEPLOYMENT_SERVER.md`
-- Přístupové údaje pro test / první start: `/app/memory/test_credentials.md`
-- Produktové rozhodnutí a backlog: `/app/memory/PRD.md`
+Data MongoDB zůstávají v `catalogue-data/mongodb`. Nesdílejte přihlašovací údaje ani databázové soubory v Gitu.

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { LockKeyhole } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -10,10 +11,19 @@ export const CredentialsCard = ({ currentUsername, onSubmit, loading }) => {
     new_password: "",
   });
 
+  useEffect(() => {
+    setForm((current) => ({ ...current, new_username: currentUsername || "" }));
+  }, [currentUsername]);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await onSubmit(form);
-    setForm((current) => ({ ...current, current_password: "", new_password: "" }));
+    if (loading) return;
+    if (new TextEncoder().encode(form.new_password).length > 72) {
+      toast.error("Heslo může mít nejvýše 72 bajtů. Zkrať jej prosím.");
+      return;
+    }
+    const saved = await onSubmit({ ...form, new_username: form.new_username.trim() });
+    if (saved) setForm((current) => ({ ...current, current_password: "", new_password: "" }));
   };
 
   return (
@@ -39,6 +49,11 @@ export const CredentialsCard = ({ currentUsername, onSubmit, loading }) => {
           </label>
           <Input
             id="current-password"
+            required
+            autoComplete="current-password"
+            minLength={4}
+            maxLength={72}
+            disabled={loading}
             type="password"
             value={form.current_password}
             onChange={(event) => setForm((current) => ({ ...current, current_password: event.target.value }))}
@@ -53,6 +68,11 @@ export const CredentialsCard = ({ currentUsername, onSubmit, loading }) => {
           </label>
           <Input
             id="new-username"
+            required
+            autoComplete="username"
+            minLength={3}
+            maxLength={64}
+            disabled={loading}
             value={form.new_username}
             onChange={(event) => setForm((current) => ({ ...current, new_username: event.target.value }))}
             className="h-12 rounded-xl border-slate-200 bg-slate-50"
@@ -66,6 +86,11 @@ export const CredentialsCard = ({ currentUsername, onSubmit, loading }) => {
           </label>
           <Input
             id="new-password"
+            required
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={72}
+            disabled={loading}
             type="password"
             value={form.new_password}
             onChange={(event) => setForm((current) => ({ ...current, new_password: event.target.value }))}

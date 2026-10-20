@@ -1,8 +1,9 @@
-import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
   rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -28,7 +29,7 @@ const SortableLaunchpadCard = ({ link, index }) => {
 export const SortableLaunchpadGrid = ({ links, onChange }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const handleDragEnd = (event) => {
@@ -39,6 +40,7 @@ export const SortableLaunchpadGrid = ({ links, onChange }) => {
 
     const oldIndex = links.findIndex((link) => link.id === active.id);
     const newIndex = links.findIndex((link) => link.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
     onChange(arrayMove(links, oldIndex, newIndex));
   };
 

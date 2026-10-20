@@ -49,6 +49,10 @@ export default function AdminPage() {
   const [customOrderLinks, setCustomOrderLinks] = useState([]);
   const [settingsDraft, setSettingsDraft] = useState(emptySettings);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
   const [savingLink, setSavingLink] = useState(false);
@@ -63,6 +67,7 @@ export default function AdminPage() {
     }
 
     setLoading(true);
+    setLoadError("");
     try {
       const [me, loadedLinks, loadedSettings] = await Promise.all([
         fetchCurrentAdmin(activeToken),
@@ -79,9 +84,13 @@ export default function AdminPage() {
         show_inactive_public: loadedSettings.show_inactive_public,
       });
     } catch (error) {
-      clearStoredToken();
-      setToken("");
-      toast.error("Administrace vyžaduje nové přihlášení.");
+      if (error?.response?.status === 401) {
+        clearStoredToken();
+        setToken("");
+        toast.error("Administrace vyžaduje nové přihlášení.");
+      } else {
+        setLoadError(getApiErrorMessage(error, "Administraci se nepodařilo načíst."));
+      }
     } finally {
       setLoading(false);
     }
@@ -109,7 +118,18 @@ export default function AdminPage() {
     navigate("/");
   };
 
+  const reportMutationError = (error, fallback) => {
+    if (error?.response?.status === 401) {
+      clearStoredToken();
+      setToken("");
+      toast.error("Přihlášení vypršelo. Přihlas se prosím znovu.");
+      return;
+    }
+    toast.error(getApiErrorMessage(error, fallback));
+  };
+
   const handleSaveLink = async (payload) => {
+    if (savingLink) return;
     setSavingLink(true);
     try {
       if (editingLink) {
@@ -123,7 +143,7 @@ export default function AdminPage() {
       setEditingLink(null);
       await loadAdminData(token);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Uložení se nepodařilo."));
+      reportMutationError(error, "Uložení se nepodařilo.");
     } finally {
       setSavingLink(false);
     }
@@ -135,42 +155,50 @@ export default function AdminPage() {
       return;
     }
 
+    if (deletingId) return;
+    setDeletingId(link.id);
     try {
       await deleteAdminLink(token, link.id);
       toast.success("Položka byla smazána.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Smazání se nepodařilo."));
+      reportMutationError(error, "Smazání se nepodařilo.");
+    } finally {
+      setDeletingId("");
     }
   };
 
   const handleSaveSettings = async () => {
+    if (savingSettings || loading || loadError) return;
     setSavingSettings(true);
     try {
       await updateAdminSettings(token, settingsDraft);
       toast.success("Nastavení bylo uloženo.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nastavení se nepodařilo uložit."));
+      reportMutationError(error, "Nastavení se nepodařilo uložit.");
     } finally {
       setSavingSettings(false);
     }
   };
 
   const handleSaveOrder = async () => {
+    if (savingOrder) return;
     setSavingOrder(true);
     try {
       await reorderAdminLinks(token, customOrderLinks.map((link) => link.id));
       toast.success("Vlastní pořadí bylo uloženo.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Pořadí se nepodařilo uložit."));
+      reportMutationError(error, "Pořadí se nepodařilo uložit.");
     } finally {
       setSavingOrder(false);
     }
   };
 
   const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
     try {
       const data = await exportAdminLinks(token);
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -178,34 +206,43 @@ export default function AdminPage() {
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = "katalogovy-rozcestnik-export.json";
+      document.body.appendChild(anchor);
       anchor.click();
-      URL.revokeObjectURL(url);
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success("Export je připravený.");
     } catch (error) {
-      toast.error("Export se nepodařil.");
+      reportMutationError(error, "Export se nepodařil.");
+    } finally {
+      setExporting(false);
     }
   };
 
   const handleImport = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file || importing) return;
+    setImporting(true);
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
+      if (file.size > 10 * 1024 * 1024) throw new Error("Import může mít nejvýše 10 MB.");
+      let parsed;
+      try { parsed = JSON.parse(await file.text()); } catch { throw new Error("Soubor není platný JSON export."); }
+      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.links) || !parsed.links.length) throw new Error("Export musí obsahovat seznam odkazů.");
+      if (!window.confirm(`Importovat ${parsed.links.length} položek? Shodná ID se aktualizují, ostatní uložené odkazy zůstanou zachované.${parsed.settings ? " Import zahrnuje i nastavení zobrazení." : ""}`)) return;
       await importAdminLinks(token, parsed);
-      toast.success("Import proběhl v pořádku.");
+      toast.success("Import byl sloučen s uloženými odkazy.");
       await loadAdminData(token);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Importovaný soubor není validní JSON export."));
+      if (error?.response || error?.isAxiosError) reportMutationError(error, "Import se nepodařil. Uložená data zůstala zachovaná.");
+      else toast.error(error.message);
     } finally {
-      event.target.value = "";
+      input.value = "";
+      setImporting(false);
     }
   };
 
   const handleCredentialChange = async (payload) => {
+    if (savingCredentials) return false;
     setSavingCredentials(true);
     try {
       const data = await changeAdminCredentials(token, payload);
@@ -213,8 +250,10 @@ export default function AdminPage() {
       setToken(data.access_token);
       setAdminUser({ username: data.username });
       toast.success("Admin přihlášení bylo změněno.");
+      return true;
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Změna přihlášení se nepodařila."));
+      reportMutationError(error, "Změna přihlášení se nepodařila.");
+      return false;
     } finally {
       setSavingCredentials(false);
     }
@@ -260,6 +299,7 @@ export default function AdminPage() {
               variant="outline"
               className="rounded-xl"
               data-testid="admin-export-button"
+              disabled={exporting || loading || !!loadError}
               onClick={handleExport}
             >
               <Download className="mr-2 h-4 w-4" />
@@ -270,6 +310,7 @@ export default function AdminPage() {
               variant="outline"
               className="rounded-xl"
               data-testid="admin-import-button"
+              disabled={importing || loading || !!loadError}
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="mr-2 h-4 w-4" />
@@ -280,6 +321,7 @@ export default function AdminPage() {
               type="button"
               className="rounded-xl bg-slate-900 hover:bg-slate-800"
               data-testid="admin-add-link-button"
+              disabled={loading || !!loadError}
               onClick={() => {
                 setEditingLink(null);
                 setDialogOpen(true);
@@ -300,6 +342,11 @@ export default function AdminPage() {
             </Button>
           </div>
         </header>
+
+        {loadError ? <section className="panel-surface p-6" role="alert" data-testid="admin-load-error">
+          <p>{loadError}</p>
+          <Button type="button" className="mt-3" onClick={() => loadAdminData()}>Zkusit znovu</Button>
+        </section> : null}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" data-testid="admin-stats-grid">
           {stats.map((item) => (
@@ -346,6 +393,8 @@ export default function AdminPage() {
                   <div className="text-sm text-slate-500">Výchozí chování pro zaměstnance.</div>
                 </div>
                 <Switch
+                  disabled={savingSettings || loading || !!loadError}
+                  aria-label="Otevírat odkazy v novém panelu"
                   checked={settingsDraft.open_in_new_tab}
                   onCheckedChange={(checked) => setSettingsDraft((current) => ({ ...current, open_in_new_tab: checked }))}
                   data-testid="admin-open-new-tab-switch"
@@ -358,6 +407,8 @@ export default function AdminPage() {
                   <div className="text-sm text-slate-500">Standardně doporučeno vypnout.</div>
                 </div>
                 <Switch
+                  disabled={savingSettings || loading || !!loadError}
+                  aria-label="Zobrazit i neaktivní položky veřejně"
                   checked={settingsDraft.show_inactive_public}
                   onCheckedChange={(checked) => setSettingsDraft((current) => ({ ...current, show_inactive_public: checked }))}
                   data-testid="admin-show-inactive-switch"
@@ -369,7 +420,7 @@ export default function AdminPage() {
                 className="w-full rounded-xl bg-slate-900 hover:bg-slate-800"
                 data-testid="admin-save-settings-button"
                 onClick={handleSaveSettings}
-                disabled={savingSettings}
+                disabled={savingSettings || loading || !!loadError}
               >
                 {savingSettings ? "Ukládám nastavení..." : "Uložit nastavení"}
               </Button>
@@ -379,7 +430,7 @@ export default function AdminPage() {
           <CredentialsCard
             currentUsername={adminUser?.username}
             onSubmit={handleCredentialChange}
-            loading={savingCredentials}
+            loading={savingCredentials || loading || !!loadError}
           />
         </section>
 
@@ -411,6 +462,7 @@ export default function AdminPage() {
           ) : (
             <LinksTable
               links={links}
+              deletingId={deletingId}
               onEdit={(link) => {
                 setEditingLink(link);
                 setDialogOpen(true);

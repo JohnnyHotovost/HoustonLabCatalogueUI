@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { discoverAdminLogo, getApiErrorMessage } from "../../api";
 import { SafeLogoImage } from "../SafeLogoImage";
@@ -27,12 +28,14 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
   const [autoLogoUrl, setAutoLogoUrl] = useState("");
   const [autoStatus, setAutoStatus] = useState("");
   const [discovering, setDiscovering] = useState(false);
+  const [autoSuppressed, setAutoSuppressed] = useState(false);
+  const uploadVersion = useRef(0);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
+    uploadVersion.current += 1;
+    if (!open) return;
+    setAutoSuppressed(false);
+    setDiscovering(false);
     setForm(
       editingLink
         ? {
@@ -50,57 +53,80 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
   }, [editingLink, open]);
 
   useEffect(() => {
-    if (!open || !token || !form.url.trim()) {
-      setAutoLogoUrl("");
-      setAutoStatus("");
-      return undefined;
-    }
-
+    let active = true;
+    setAutoLogoUrl("");
+    setAutoStatus("");
+    setDiscovering(false);
+    if (!open || !token || !form.url.trim() || autoSuppressed) return undefined;
     const timeout = setTimeout(async () => {
       setDiscovering(true);
       try {
-        const result = await discoverAdminLogo(token, form.url);
+        const result = await discoverAdminLogo(token, form.url.trim());
+        if (!active) return;
         if (result?.found && result.logo_url) {
           setAutoLogoUrl(result.logo_url);
           setAutoStatus("Logo načtené automaticky z webu.");
         } else {
-          setAutoLogoUrl("");
-          setAutoStatus("Automatické logo se nenašlo.");
+          setAutoStatus("Automatické logo se nenašlo. Můžeš nahrát vlastní.");
         }
       } catch (error) {
-        setAutoLogoUrl("");
-        setAutoStatus(getApiErrorMessage(error, "Automatické logo se nepodařilo načíst."));
+        if (active) setAutoStatus(getApiErrorMessage(error, "Automatické logo se nepodařilo načíst."));
       } finally {
-        setDiscovering(false);
+        if (active) setDiscovering(false);
       }
     }, 700);
-
-    return () => clearTimeout(timeout);
-  }, [form.url, open, token]);
+    return () => { active = false; clearTimeout(timeout); };
+  }, [form.url, open, token, autoSuppressed]);
 
   const preview = useMemo(() => form.logo_data || form.logo_url || autoLogoUrl || "", [autoLogoUrl, form.logo_data, form.logo_url]);
 
   const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
-    if (!file) {
+    event.target.value = "";
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif", "image/x-icon", "image/vnd.microsoft.icon"].includes(file.type)) {
+      toast.error("Vyber PNG, JPEG, WebP, GIF nebo ICO. SVG není podporováno.");
       return;
     }
-
+    if (file.size > 1024 * 1024) {
+      toast.error("Logo může mít nejvýše 1 MB.");
+      return;
+    }
+    const version = ++uploadVersion.current;
     const reader = new FileReader();
-    reader.onload = () => setForm((current) => ({ ...current, logo_data: String(reader.result || "") }));
+    reader.onload = () => {
+      if (uploadVersion.current === version) setForm((current) => ({ ...current, logo_data: String(reader.result || "") }));
+    };
+    reader.onerror = () => toast.error("Soubor se nepodařilo přečíst. Vyber jej znovu.");
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (loading) return;
+    if (!form.title.trim()) {
+      toast.error("Vyplň název webu.");
+      return;
+    }
+    try {
+      for (const value of [form.url.trim(), form.logo_url.trim()].filter(Boolean)) {
+        const parsed = new URL(value.includes("://") ? value : `https://${value}`);
+        if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password) throw new Error();
+      }
+    } catch {
+      toast.error("Zadej platnou HTTP nebo HTTPS adresu bez přihlašovacích údajů.");
+      return;
+    }
     await onSubmit({
       ...form,
-      logo_url: form.logo_url.trim() || autoLogoUrl,
+      title: form.title.trim(),
+      url: form.url.trim(),
+      logo_url: form.logo_url.trim() || (autoSuppressed ? "" : autoLogoUrl),
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!loading) onOpenChange(next); }}>
       <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-[1.5rem] border-slate-200 sm:max-w-2xl" data-testid="link-form-dialog">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-slate-900" data-testid="link-form-title">
@@ -119,6 +145,9 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
               </label>
               <Input
                 id="link-title"
+                required
+                maxLength={80}
+                disabled={loading}
                 value={form.title}
                 onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
                 className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base"
@@ -133,8 +162,13 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
               </label>
               <Input
                 id="link-url"
+                required
+                maxLength={2048}
+                autoComplete="url"
+                inputMode="url"
+                disabled={loading}
                 value={form.url}
-                onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))}
+                onChange={(event) => { setAutoSuppressed(false); setForm((current) => ({ ...current, url: event.target.value })); }}
                 className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base"
                 data-testid="link-form-url-input"
                 placeholder="https://www.example.cz"
@@ -170,6 +204,9 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
               </label>
               <Input
                 id="logo-url"
+                maxLength={2048}
+                inputMode="url"
+                disabled={loading}
                 value={form.logo_url}
                 onChange={(event) => setForm((current) => ({ ...current, logo_url: event.target.value }))}
                 className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base"
@@ -193,7 +230,8 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
               <input
                 id="logo-upload"
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon"
+                disabled={loading}
                 className="hidden"
                 data-testid="link-form-logo-upload-input"
                 onChange={handleFileUpload}
@@ -218,7 +256,7 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
                   variant="outline"
                   className="rounded-xl"
                   data-testid="link-form-remove-logo-button"
-                  onClick={() => setForm((current) => ({ ...current, logo_data: "", logo_url: "" }))}
+                  onClick={() => { uploadVersion.current += 1; setAutoSuppressed(true); setAutoLogoUrl(""); setForm((current) => ({ ...current, logo_data: "", logo_url: "" })); }}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Odebrat logo
@@ -238,6 +276,8 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
                 <div className="text-sm text-slate-500">Neaktivní položku lze skrýt z veřejné plochy.</div>
               </div>
               <Switch
+                disabled={loading}
+                aria-label="Aktivní položka"
                 checked={form.is_active}
                 onCheckedChange={(checked) => setForm((current) => ({ ...current, is_active: checked }))}
                 data-testid="link-form-active-switch"
@@ -250,6 +290,8 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
                 <div className="text-sm text-slate-500">Připne se nahoru před ostatní odkazy.</div>
               </div>
               <Switch
+                disabled={loading}
+                aria-label="Oblíbená položka"
                 checked={form.is_favorite}
                 onCheckedChange={(checked) => setForm((current) => ({ ...current, is_favorite: checked }))}
                 data-testid="link-form-favorite-switch"
@@ -263,6 +305,7 @@ export const LinkFormDialog = ({ open, onOpenChange, onSubmit, editingLink, load
               variant="outline"
               className="rounded-xl"
               data-testid="link-form-cancel-button"
+              disabled={loading}
               onClick={() => onOpenChange(false)}
             >
               Zrušit

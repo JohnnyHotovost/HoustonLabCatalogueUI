@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const configuredBackendUrl = process.env.REACT_APP_BACKEND_URL?.trim();
+const configuredBackendUrl = process.env.REACT_APP_BACKEND_URL?.trim().replace(/\/$/, "");
 
 export const BACKEND_URL = configuredBackendUrl || "";
 export const API_BASE = BACKEND_URL ? `${BACKEND_URL}/api` : "/api";
@@ -8,6 +8,7 @@ export const ADMIN_TOKEN_KEY = "catalogue-admin-token";
 
 const api = axios.create({
   baseURL: API_BASE,
+  timeout: 20000,
 });
 
 const authHeaders = (token) => ({
@@ -16,9 +17,21 @@ const authHeaders = (token) => ({
   },
 });
 
-export const getStoredToken = () => localStorage.getItem(ADMIN_TOKEN_KEY);
-export const setStoredToken = (token) => localStorage.setItem(ADMIN_TOKEN_KEY, token);
-export const clearStoredToken = () => localStorage.removeItem(ADMIN_TOKEN_KEY);
+let memoryToken = "";
+let memoryOnly = false;
+export const getStoredToken = () => {
+  if (memoryOnly) return memoryToken;
+  try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ""; } catch { return memoryToken; }
+};
+export const setStoredToken = (token) => {
+  memoryToken = token;
+  try { localStorage.setItem(ADMIN_TOKEN_KEY, token); memoryOnly = false; } catch { memoryOnly = true; }
+};
+export const clearStoredToken = () => {
+  memoryToken = "";
+  memoryOnly = false;
+  try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch { /* Storage may be disabled. */ }
+};
 
 const detailToMessage = (detail) => {
   if (!detail) {
@@ -44,7 +57,9 @@ const detailToMessage = (detail) => {
 };
 
 export const getApiErrorMessage = (error, fallback = "Něco se nepodařilo.") => {
-  const message = detailToMessage(error?.response?.data?.detail || error?.response?.data || error?.message);
+  if (error?.code === "ECONNABORTED") return "Server neodpovídá včas. Zkus to prosím znovu.";
+  if (!error?.response && error?.isAxiosError) return "Server není dostupný. Zkontroluj připojení a zkus to znovu.";
+  const message = detailToMessage(error?.response?.data?.detail || error?.response?.data);
   return message || fallback;
 };
 
@@ -122,15 +137,13 @@ export const importAdminLinks = async (token, payload) => {
   return data;
 };
 
-export const trackLinkClick = async (id) => {
-  const beaconUrl = `${API_BASE}/links/${id}/click`;
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon(beaconUrl);
-    return;
-  }
-
-  await fetch(beaconUrl, {
-    method: "POST",
-    keepalive: true,
-  });
+// Telemetry never owns navigation. Browsers follow the card's native anchor immediately.
+export const trackLinkClick = (id) => {
+  const beaconUrl = `${API_BASE}/links/${encodeURIComponent(id)}/click`;
+  try {
+    if (navigator.sendBeacon?.(beaconUrl)) return;
+  } catch { /* Fall back when the browser rejects a beacon. */ }
+  try {
+    Promise.resolve(fetch(beaconUrl, { method: "POST", keepalive: true })).catch(() => {});
+  } catch { /* Statistics are best effort and must never prevent opening a link. */ }
 };
